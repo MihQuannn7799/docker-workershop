@@ -5,6 +5,7 @@ import pandas as pd
 from sqlalchemy import create_engine
 from tqdm.auto import tqdm
 import argparse
+import requests
 
 dtype = { "VendorID": "Int64",
         "passenger_count": "Int64",
@@ -23,17 +24,32 @@ dtype = { "VendorID": "Int64",
         "total_amount": "float64", 
         "congestion_surcharge": "float64" 
         }
-parse_dates = [
-    "tpep_pickup_datetime",
-    "tpep_dropoff_datetime"
-]
 
 
-def ingest_data(url, engine, target_table, chunksize = 100000):
+def download_and_convert_parquet(parquet_url, parquet_file, csv_file):
+    print("Downloading parquet from web...")
+    headers = {
+        "User-Agent": "Mozilla/5.0"
+    }
+
+    r = requests.get(parquet_url, headers=headers)
+    r.raise_for_status()
+
+    with open(parquet_file, "wb") as f:
+        f.write(r.content)
+
+    print("Reading parquet...")
+    df = pd.read_parquet(parquet_file)
+
+    print("Converting to CSV...")
+    df.to_csv(csv_file, index=False)
+
+
+
+def ingest_data(csv_file, engine, target_table, chunksize = 100000):
     df_iter = pd.read_csv(
-        url,
+        csv_file,
         dtype=dtype,
-        parse_dates=parse_dates,
         iterator=True,
         chunksize=chunksize
     )
@@ -77,12 +93,19 @@ def main(params):
     target_table = params.target_table
 
     engine = create_engine(f'postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}', pool_pre_ping=True)
-    url_prefix = 'https://github.com/DataTalksClub/nyc-tlc-data/releases/download/yellow'
-
-    url = f'{url_prefix}/yellow_tripdata_{year}-{month}.csv.gz'
-
+    url_prefix = 'https://d37ci6vzurychx.cloudfront.net/trip-data'
+    
+    url = f'{url_prefix}/green_tripdata_{year}-{month}.parquet'
+    
+    parquet_file = "data.parquet"
+    csv_file = "output.csv"
+    
+    download_and_convert_parquet(parquet_url = url,
+                                parquet_file=parquet_file,
+                                csv_file=csv_file )
+    
     ingest_data(
-        url=url,
+        csv_file=csv_file,
         engine=engine,
         target_table=target_table,
         chunksize=int(chunksize)
