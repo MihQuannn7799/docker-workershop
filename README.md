@@ -1,2 +1,2 @@
 # docker-workershop
-workshop
+homework: module 1 
