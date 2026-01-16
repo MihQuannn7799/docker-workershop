@@ -16,4 +16,4 @@ RUN uv sync --locked
 
 COPY ingest_data.py ingest_data.py 
 
-ENTRYPOINT [ "python", "ingest_data.py --pg-user=root   --pg-pass=root   --pg-host=localhost   --pg-port=5432   --pg-db=ny_taxi   --target-table=yellow_taxi_trips   --year=2021   --month=01   --chunksize=10000" ]
+ENTRYPOINT [ "python", "ingest_data.py" ]
