@@ -67,74 +67,66 @@ Run the following command in the terminal to run the script:
 For the trips in November 2025 (lpep_pickup_datetime between '2025-11-01' and '2025-12-01', exclusive of the upper bound), how many trips had a trip_distance of less than or equal to 1 mile?
 
 ```sql
-select 
-	COUNT(*) AS total_trips
-from public.green_taxi_data
+SELECT COUNT(*)
+FROM yellow_tripdata
 WHERE 
 	trip_distance <= 1
-AND 
-	CAST(lpep_pickup_datetime AS DATE ) >= DATE('2025-11-01') 
-AND 
-	CAST(lpep_pickup_datetime AS DATE ) < DATE('2025-12-01');
+WHERE tpep_pickup_datetime >= '2019-01-01'
+  AND tpep_pickup_datetime <  '2019-02-01';
 ``` 
 
 ## Question 4
 Which was the pick up day with the longest trip distance? Only consider trips with trip_distance less than 100 miles (to exclude data errors).
 
 ```sql
-select 
-	CAST(lpep_pickup_datetime AS DATE ) AS day
-from public.green_taxi_data
-where 
-	trip_distance < 100
-order BY trip_distance DESC
-limit 1;
+SELECT
+    DATE(pickup_datetime) AS pickup_day,
+    MAX(trip_distance) AS max_trip_distance
+FROM trips
+WHERE trip_distance < 100
+GROUP BY DATE(pickup_datetime)
+ORDER BY max_trip_distance DESC
+LIMIT 1;
 ```
 
 ## Question 5 
 Which was the pickup zone with the largest total_amount (sum of all trips) on November 18th, 2025?
 
 ```sql
-with counts as (
-select 
-	"PULocationID" AS location_id
-	,count(*)as total_trips 
-from public.green_taxi_data  
-where DATE(lpep_pickup_datetime) = '2025-11-18'
-group bY "PULocationID"
-order by 2 DESC
-limit 1
-)
-select 
-	z."Zone"
-	,c.location_id
-	,c.total_trips
-from public.taxi_zones z
-join counts c on z."LocationID" = c.location_id
+SELECT
+    z_drop."Zone" AS dropoff_zone,
+    MAX(g.tip_amount) AS max_tip
+FROM green_taxi_trips g
+JOIN zones z_pick
+    ON g."PULocationID" = z_pick."LocationID"
+JOIN zones z_drop
+    ON g."DOLocationID" = z_drop."LocationID"
+WHERE z_pick."Zone" = 'East Harlem North'
+  AND g.lpep_pickup_datetime >= '2025-11-01'
+  AND g.lpep_pickup_datetime <  '2025-12-01'
+GROUP BY z_drop."Zone"
+ORDER BY max_tip DESC
+LIMIT 1;
 ```
 
 ## Question 6
 For the passengers picked up in the zone named "East Harlem North" in November 2025, which was the drop off zone that had the largest tip?
 
 ```sql
-with largest_tip as (
-select 
-	"DOLocationID" as location_id
-	,tip_amount 
-from public.green_taxi_data 
-where "PULocationID" IN (
-	select "LocationID" from public.taxi_zones Where "Zone" = 'East Harlem North'
-)
-AND CAST(lpep_pickup_datetime AS DATE ) >= DATE('2025-11-01') 
-order by 2 DESC
-LIMIT 1
-)
-select 
-	"Zone"
-	,h.location_id
-	,h.tip_amount
-from public.taxi_zones p
-join largest_tip h ON h.location_id = p."LocationID"
+SELECT
+    z_drop."Zone" AS dropoff_zone,
+    MAX(g.tip_amount) AS max_tip
+FROM green_taxi_trips g
+JOIN zones z_pick
+    ON g."PULocationID" = z_pick."LocationID"
+JOIN zones z_drop
+    ON g."DOLocationID" = z_drop."LocationID"
+WHERE z_pick."Zone" = 'East Harlem North'
+  AND g.lpep_pickup_datetime >= '2025-11-01'
+  AND g.lpep_pickup_datetime <  '2025-12-01'
+GROUP BY z_drop."Zone"
+ORDER BY max_tip DESC
+LIMIT 1;
 ```
 
 ## Question 7 
